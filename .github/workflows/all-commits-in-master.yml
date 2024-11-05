@@ -14,6 +14,7 @@ jobs:
 
       - name: Check if commits exist in master
         run: |
+          exit 1
           MASTER_BRANCH="master"
           SOURCE_BRANCH=$(echo ${{ github.head_ref }})
 
