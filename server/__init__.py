@@ -313,9 +313,12 @@ def register_routes_common(app):
   from server.routes.oembed import oembed as oembed
   app.register_blueprint(oembed.bp)
 
+from prometheus_flask_exporter.multiprocess import GunicornPrometheusMetrics
 
 def create_app(nl_root=DEFAULT_NL_ROOT):
   app = Flask(__name__, static_folder='dist', static_url_path='')
+
+  metrics = GunicornPrometheusMetrics(app)
 
   cfg = lib_config.get_config()
 
