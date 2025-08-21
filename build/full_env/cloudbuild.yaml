@@ -13,17 +13,22 @@
 # limitations under the License.
 
 substitutions:
-  _VERS: "2025-07-31"
+  _VERS: "devcontainer"
 
 steps:
   - name: "gcr.io/cloud-builders/docker"
+    entrypoint: "bash"
     args:
-      - build
-      - "--build-arg=VERS=${_VERS}"
-      - --tag=gcr.io/datcom-ci/full-env:${_VERS}
-      - --tag=gcr.io/datcom-ci/full-env:latest
-      - "."
+      - -c
+      - |
+        set -e
+        docker buildx create --use
+        docker buildx build \
+          --platform=linux/amd64,linux/arm64 \
+          --build-arg=VERS=${_VERS} \
+          --tag=gcr.io/datcom-ci/full-env:${_VERS} \
+          --push \
+          .
 
 images:
   - "gcr.io/datcom-ci/full-env:${_VERS}"
-  - "gcr.io/datcom-ci/full-env:latest"

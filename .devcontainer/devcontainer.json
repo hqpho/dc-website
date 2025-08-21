@@ -1,0 +1,27 @@
+{
+	"name": "Data Commons Full Environment",
+	"image": "gcr.io/datcom-ci/full-env:devcontainer",
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [
+		8080
+	],
+
+  "mounts": [
+  	"source=${localEnv:HOME}/.config/gcloud,target=/root/.config/gcloud,type=bind,consistency=cached"
+  ],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "git submodule update --init --recursive",
+
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"esbenp.prettier-vscode",
+				"redhat.vscode-yaml"
+			]
+		}
+	}
+}

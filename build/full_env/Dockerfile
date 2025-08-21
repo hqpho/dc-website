@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 # Stage 1: Python Builder
 # Uses a specific Python patch version on a slim Debian Bookworm base
 FROM python:3.11.4-slim-bookworm AS python-builder
@@ -25,18 +24,25 @@ FROM node:18.4.0-slim AS node-builder
 
 # Stage 3: Go Builder
 # Uses a specific Go patch version on a Debian Bookworm base
-FROM golang:1.23.11-bookworm as go-builder
+FROM golang:1.23.11-bookworm AS go-builder
 
 # Stage 4: Protoc Builder
 # Downloads and extracts protoc, as there isn't a dedicated "protoc" base image for easy copying.
-FROM debian:bookworm-slim as protoc-builder
+FROM debian:bookworm-slim AS protoc-builder
+ARG TARGETARCH
 ENV PROTOC_VERSION="21.12"
 RUN apt update && \
     # Explicitly install ca-certificates along with curl and unzip for this stage's curl
     apt install -y --no-install-recommends curl unzip ca-certificates && \
-    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip" && \
-    unzip protoc-${PROTOC_VERSION}-linux-x86_64.zip -d /usr/local && \
-    rm protoc-${PROTOC_VERSION}-linux-x86_64.zip && \
+    PROTOC_ARCH="" && \
+    case ${TARGETARCH} in \
+        amd64) PROTOC_ARCH="x86_64";; \
+        arm64) PROTOC_ARCH="aarch_64";; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" >&2; exit 1;; \
+    esac && \
+    curl -LO "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip" && \
+    unzip protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip -d /usr/local && \
+    rm protoc-${PROTOC_VERSION}-linux-${PROTOC_ARCH}.zip && \
     # Clean up after download and extraction
     apt autoremove -y curl unzip ca-certificates && \
     apt clean && \
@@ -52,6 +58,8 @@ FROM google/cloud-sdk:469.0.0-slim AS gcloud-builder
 # Final Stage: Combine all components + Chrome/ChromeDriver
 # Using debian:bookworm-slim as a minimal base for the final image.
 FROM debian:bookworm-slim
+# This arg should be populated by buildx.
+ARG TARGETARCH
 
 # Install common utilities needed for the combined environment,
 # including build-essential for some tools, and tools for Chrome/ChromeDriver.
@@ -71,25 +79,14 @@ RUN apt update && apt install -y --no-install-recommends \
 # Set WORKDIR for potential later commands
 WORKDIR /resources
 
-# --- Install Google Chrome ---
-# Use the modern, secure way to add the GPG key and APT repository
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /etc/apt/keyrings/google-chrome.gpg && \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
-    apt update && \
-    apt install -y google-chrome-stable
-
-# Install default fonts needed by Chrome/applications
-RUN apt install -y fonts-indic fonts-noto fonts-noto-cjk
-
-# --- Install ChromeDriver ---
-# Note: This method fetches the latest stable ChromeDriver compatible with the latest stable Chrome.
-# To use a specific version, replace the curl URL with the direct URL for that version.
-RUN CHROME_DRIVER_VERSION=$(curl -sS https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_STABLE) && \
-    wget -O /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/${CHROME_DRIVER_VERSION}/linux64/chromedriver-linux64.zip && \
-    unzip /tmp/chromedriver.zip -d /tmp/ && \
-    cp /tmp/chromedriver-linux64/chromedriver /usr/bin/ && \
-    chown root:root /usr/bin/chromedriver && \
-    chmod +x /usr/bin/chromedriver
+# --- Install Chromium, ChromeDriver, and fonts ---
+# Install from Debian's official repositories for multi-platform support.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    chromium chromium-driver fonts-indic fonts-noto fonts-noto-cjk \
+    && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy Python runtime
 COPY --from=python-builder /usr/local /usr/local
@@ -121,3 +118,28 @@ ENV PATH="/usr/local/go/bin:${GOPATH}/bin:/usr/local/bin:/usr/lib/google-cloud-s
 RUN mkdir -p ${GOPATH}/src ${GOPATH}/bin && \
     go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+
+# Specify a non-root user to run as
+ARG USERNAME=docker
+ARG USER_UID=1001
+ARG USER_GID=$USER_UID
+
+# Create the user and grant sudo privileges
+RUN apt-get update \
+    && apt-get install -y sudo \
+    # Create a group for our user
+    && groupadd --gid $USER_GID $USERNAME \
+    # Create the user with a specific UID, GID, and home directory
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    # Grant passwordless sudo access to the new user
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    # Set secure permissions on the sudoers file
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    # Clean up apt cache to keep image small
+    && rm -rf /var/lib/apt/lists/*
+
+# Switch to the user
+USER $USERNAME
+
+# Set the default working directory to the user's home
+WORKDIR /home/$USERNAME
