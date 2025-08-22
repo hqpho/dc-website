@@ -29,6 +29,3 @@ steps:
           --tag=gcr.io/datcom-ci/full-env:${_VERS} \
           --push \
           .
-
-images:
-  - "gcr.io/datcom-ci/full-env:${_VERS}"

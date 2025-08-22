@@ -71,6 +71,7 @@ RUN apt update && apt install -y --no-install-recommends \
     gnupg \
     wget \
     unzip \
+    python3-venv \
     && \
     apt autoremove -y && \
     apt clean && \
@@ -127,16 +128,12 @@ ARG USER_GID=$USER_UID
 # Create the user and grant sudo privileges
 RUN apt-get update \
     && apt-get install -y sudo \
-    # Create a group for our user
     && groupadd --gid $USER_GID $USERNAME \
-    # Create the user with a specific UID, GID, and home directory
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    # Grant passwordless sudo access to the new user
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    # Set secure permissions on the sudoers file
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && usermod -aG sudo $USERNAME \
+    && echo '%sudo ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/sudo-nopasswd \
     # Clean up apt cache to keep image small
-    && rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*
 
 # Switch to the user
 USER $USERNAME

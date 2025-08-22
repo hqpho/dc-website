@@ -79,12 +79,14 @@ ENV_FILE=${RUN_CDC_DEV_ENV_FILE:-.run_cdc_dev.env}
 echo "Using environment file: $ENV_FILE"
 source $ENV_FILE && export $(sed '/^#/d' $ENV_FILE | cut -d= -f1)
 
-# Print commit hashes.
-echo -e "\033[0;32m" # Set different color.
-echo "website hash: $(git rev-parse --short=7 HEAD)"
-echo "mixer hash: $(git rev-parse --short=7 HEAD:mixer)"
-echo "import hash: $(git rev-parse --short=7 HEAD:import)"
-echo -e "\033[0m" # Reset color.
+# Print commit hashes if git is available and this is a git repo.
+if git rev-parse --is-inside-work-tree &> /dev/null; then
+  echo -e "\033[0;32m" # Set different color.
+  echo "website hash: $(git rev-parse --short=7 HEAD)"
+  echo "mixer hash: $(git rev-parse --short=7 HEAD:mixer)"
+  echo "import hash: $(git rev-parse --short=7 HEAD:import)"
+  echo -e "\033[0m" # Reset color.
+fi
 
 
 if [[ $DC_API_KEY == "" ]]; then
