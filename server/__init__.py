@@ -330,6 +330,9 @@ def create_app(nl_root=DEFAULT_NL_ROOT):
   log_level = logging.WARNING
   if lib_utils.is_debug_mode():
     log_level = logging.INFO
+  # Quieten down mixer logs in webdriver tests.
+  if cfg.WEBDRIVER:
+    log_level = logging.WARNING
   logging.getLogger('werkzeug').setLevel(log_level)
 
   # Setup flask config
