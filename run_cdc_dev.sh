@@ -126,26 +126,8 @@ echo
 cd mixer
 export MIXER_API_KEY=$DC_API_KEY
 
-echo "Generating Go proto files..."
-protoc \
-  --proto_path=proto \
-  --go_out=paths=source_relative:internal/proto \
-  --go-grpc_out=paths=source_relative:internal/proto \
-  --go-grpc_opt=require_unimplemented_servers=false \
-  --experimental_allow_proto3_optional \
-  --include_imports \
-  --include_source_info \
-  --descriptor_set_out mixer-grpc.pb \
-  proto/*.proto proto/**/*.proto
-
-echo "Building mixer..."
-go build -o bin/mixer_server cmd/main.go
-if [ $? -ne 0 ]; then
-  echo "Mixer build failed."
-  exit 1
-fi
 echo "Starting mixer..."
-mixer_command="./bin/mixer_server \
+mixer_command="./run_server.sh \
   --use_bigquery=false \
   --use_base_bigtable=false \
   --use_custom_bigtable=false \
