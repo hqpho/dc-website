@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -22,6 +23,7 @@ from server.webdriver.base_utils import find_elems
 from server.webdriver.shared_tests.homepage_test import HomepageTestMixin
 
 
+@pytest.mark.vcr
 class TestHomepage(HomepageTestMixin, BaseDcWebdriverTest):
   """Tests for Homepage. Some tests come from HomepageTestMixin."""
 
